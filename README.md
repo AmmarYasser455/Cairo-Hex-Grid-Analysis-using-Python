@@ -1,73 +1,96 @@
-# Cairo Hex Grid Analysis (snippet)
+# Cairo Hex Grid Analysis
 
-This repository contains a script to create a projected hex grid over a place (e.g., Cairo), aggregate OpenStreetMap amenities into hex cells, score cells by service density/diversity, find cafe hotspots with DBSCAN, export GeoJSON, and create an interactive Folium map.
+An end-to-end script to analyze OpenStreetMap (OSM) amenities over Cairo using a projected hex grid. The project builds a hex grid, aggregates amenity counts and diversity, computes a service score per hex, detects cafe hotspots with DBSCAN, exports GeoJSON, and produces an interactive Folium map.
 
-## Tested environment
-- Python: 3.9 — 3.11
-- Key packages (pinned in `requirements.txt`): geopandas, osmnx, folium, shapely, scikit-learn, pandas, numpy.
+Live demo (interactive map)
+- View the hosted interactive map here: https://cairo-hex-analysis-by-ammaryasser.netlify.app/
 
-## Installation
+Quick links
+- Script: `advanced_hex_analysis.py`
+- Requirements: `requirements.txt`
 
-### Recommended (conda — best for geospatial dependencies)
-1. Create environment:
-   ```
-   conda create -n hexenv python=3.10 -y
-   conda activate hexenv
-   ```
-2. Install from conda-forge:
-   ```
-   conda install -c conda-forge geopandas osmnx folium shapely fiona rtree pyproj scikit-learn branca pandas numpy matplotlib -y
-   ```
-3. (Optional) If you also want to pin exact versions from `requirements.txt`, you can then:
-   ```
-   pip install -r requirements.txt
-   ```
+Features
+- Download OSM amenities for a place (default: Cairo, Egypt)
+- Build a projected hex grid (meters) and trim to the target area
+- Aggregate amenity counts and unique amenity diversity per hex
+- Compute a combined "service score" (weighted density + diversity)
+- Detect cafe hotspots using DBSCAN (projected distances)
+- Export GeoJSONs and save an interactive Folium HTML map
 
-### Pip (virtualenv)
-1. Create and activate a virtualenv:
-   ```
-   python -m venv .venv
-   source .venv/bin/activate   # Windows: .venv\Scripts\activate
-   ```
-2. Install:
-   ```
-   pip install -r requirements.txt
-   ```
+Getting started
 
-Note: Installing geospatial libs via pip on some systems requires system libraries (GDAL/PROJ/GEOS). Using conda-forge is generally easier.
-
-## Usage
-
-Basic usage (the script is `advanced_hex_analysis.py`):
+1. Clone the repo
+```bash
+git clone https://github.com/AmmarYasser455/Cairo-Hex-Grid-Analysis-using-Python.git
+cd Cairo-Hex-Grid-Analysis-using-Python
 ```
+
+2. Install dependencies
+- Recommended: use conda (best for geospatial binaries)
+```bash
+conda create -n hexenv python=3.10 -y
+conda activate hexenv
+conda install -c conda-forge geopandas osmnx folium shapely fiona rtree pyproj scikit-learn branca pandas numpy matplotlib -y
+# Optionally pin exact pip versions:
+pip install -r requirements.txt
+```
+
+- Or with pip in a virtualenv:
+```bash
+python -m venv .venv
+source .venv/bin/activate         # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+3. Run the analysis
+- By default the script uses the variables at the top of `advanced_hex_analysis.py`:
+  - `place_name` — e.g., `"Cairo, Egypt"`
+  - `hex_radius_m` — hex radius in meters
+  - `output_folder` — where outputs are saved
+- Run:
+```bash
 python advanced_hex_analysis.py
 ```
 
-Key variables at the top of the script you can change:
-- `place_name` — the target place string for OSMnx geocoding (e.g., `"Cairo, Egypt"`).
-- `hex_radius_m` — hex radius in meters.
-- `output_folder` — where GeoJSON and HTML map are saved.
-- DBSCAN parameters (in-script): `eps` (meters) and `min_samples` — consider making these configurable.
+Outputs (default `output/` folder)
+- `cairo_hexgrid.geojson` — hex cells with attributes: count, diversity, area_m2, density_per_km2, score
+- `hotspots.geojson` — detected cafe hotspots (if any)
+- `cairo_hex_map.html` — interactive Folium map (this is the HTML you can view locally or host; the live demo link above hosts a version online)
 
-Outputs (default `output` folder):
-- `cairo_hexgrid.geojson` — hex cells with counts/diversity/score.
-- `hotspots.geojson` — detected cafe hotspots (if any).
-- `cairo_hex_map.html` — interactive Folium map.
+Embedding / hosting the HTML map
+- If you want to host the generated `cairo_hex_map.html` yourself:
+  - Option A — GitHub Pages: place the HTML in the `gh-pages` branch or in a docs/ folder and enable GitHub Pages.
+  - Option B — Netlify: drag & drop the HTML (or point Netlify to the repo) — this is how the live demo above was deployed.
+- The README's "Live demo" link points to a Netlify-hosted copy of the generated HTML map.
 
-## Notes & Troubleshooting
+Notes & troubleshooting
+- OSMnx API: function names have changed across versions. If you encounter an error with OSMnx functions, check your `osmnx` version and update function calls (e.g., `geometries_from_place` vs `features_from_place`).
+- CRS and distances: DBSCAN `eps` is in projected units (meters) because the script uses EPSG:3857 for distance calculations. If you change `hex_radius_m`, consider adjusting `eps`.
+- Large areas: generating a dense hex grid over large administrative boundaries may create many cells and use a lot of memory. Consider limiting the grid to a buffered convex hull around your amenity points.
+- Installing geopandas/fiona/shapely via pip can fail on some systems due to native dependencies (GDAL/PROJ). Use conda-forge for a smoother install.
 
-- OSMnx API changes: some function names may change across OSMnx versions (e.g., `geometries_from_place` vs `features_from_place`). If you get errors, check your installed osmnx version and update function calls accordingly.
-- If `pip install` fails for geopandas/fiona/shapely, prefer installing via conda-forge which handles binary dependencies.
-- On Windows, installing `rtree` may require `libspatialindex` available (conda-forge handles this).
-- If you see unusually large hex grids or memory issues, consider limiting the grid to a buffered convex hull of the amenity points rather than the entire administrative area.
-- DBSCAN `eps` is in projected units (meters for EPSG:3857). If you change `hex_radius_m`, consider scaling `eps` accordingly.
+Optional improvements
+- Convert the script into a CLI (argparse) so place, radius, DBSCAN params, and amenity list can be passed in.
+- Add logging and exception handling for network calls and file writes.
+- Add a small sample dataset and unit tests for automated validation.
+- Use Git LFS for large media files (screenshots, GIFs, videos).
 
-## Next steps you might want
-- Convert the script into a CLI with `argparse` to pass place, radius, DBSCAN params, and amenity list.
-- Add unit tests for grid creation and scoring.
-- Add a small sample dataset + expected outputs for CI/testing.
+Contributing
+- Contributions welcome — open an issue or submit a PR. If adding images/screenshots, put them in an `assets/` folder and reference them in the README with a relative path (e.g., `assets/images/map.png`). For large binaries, consider using Git LFS.
 
-If you'd like, I can:
-- produce a complete README (extended with examples/screenshots),
-- refactor the script to accept CLI args,
-- or prepare a conda environment YAML for reproducible installs.
+Contact
+- Maintainer: AmmarYasser455 (GitHub)
+- Live demo: https://cairo-hex-analysis-by-ammaryasser.netlify.app/
+
+License
+- Add your preferred license (e.g., MIT) in a `LICENSE` file if you want this repository to be explicitly licensed.
+
+---
+
+What I did: I created a polished README.md that includes the provided Netlify link as the live demo, installation steps (conda and pip), usage, outputs, hosting tips, troubleshooting, and next steps.
+
+If you want, I can:
+- add a badge and screenshot (place an image in `assets/` and I’ll update the README),
+- produce a GitHub Pages or Netlify deployment guide with step-by-step screenshots,
+- or convert `advanced_hex_analysis.py` into a CLI and update the README with examples.
+Which would you like next?
