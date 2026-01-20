@@ -14,8 +14,8 @@ from folium.plugins import HeatMap, MarkerCluster
 
 # -----------------------
 
-place_name = "Cairo, Egypt"   # غيّر لمنطقتك لو حبيت
-hex_radius_m = 400            # نصف قطر الهيكس بالمتر (قابل للتعديل: 200-1000 حسب مستوى التفاصيل)
+place_name = "Cairo, Egypt"   
+hex_radius_m = 400            
 output_folder = "output"
 os.makedirs(output_folder, exist_ok=True)
 
@@ -33,7 +33,7 @@ raw = ox.features_from_place(place_name, tags)
 
 raw = raw[~raw.geometry.is_empty].copy()
 raw_points = raw.copy()
-raw_points["geometry"] = raw_points.geometry.centroid  # centroid لكل feature
+raw_points["geometry"] = raw_points.geometry.centroid  
 raw_points = raw_points.set_geometry("geometry").to_crs(epsg=4326)
 
 
