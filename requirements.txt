@@ -1,8 +1,14 @@
-geopandas
-osmnx
-folium
-shapely
-scikit-learn
-numpy
-pandas
-branca
+# Tested environment: Python 3.9 - 3.11
+# Install with: pip install -r requirements.txt
+numpy==1.24.4
+pandas==1.5.3
+geopandas==0.13.2
+shapely==2.0.1
+pyproj==3.6.0
+fiona==1.9.4
+rtree==0.9.8
+osmnx==1.2.2
+folium==0.14.0
+branca==0.6.0
+scikit-learn==1.2.2
+matplotlib==3.7.1
