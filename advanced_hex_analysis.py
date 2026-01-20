@@ -50,13 +50,11 @@ minx, miny, maxx, maxy = area_bound.bounds
 
 
 def make_hexagon(center_x, center_y, r):
-    # r: radius in meters (circumradius)
     angles = np.linspace(0, 2*np.pi, 7)[:-1]
     pts = [(center_x + r * np.cos(a), center_y + r * np.sin(a)) for a in angles]
     return Polygon(pts)
 
 def make_hex_grid(minx, miny, maxx, maxy, r):
-    # spacing
     dx = 1.5 * r
     dy = np.sqrt(3) * r
     hexes = []
@@ -76,7 +74,6 @@ def make_hex_grid(minx, miny, maxx, maxy, r):
 print("2) Building hex grid (projected meters)...")
 hex_polys = make_hex_grid(minx, miny, maxx, maxy, hex_radius_m)
 hex_gdf = gpd.GeoDataFrame({"geometry": hex_polys}, crs="EPSG:3857")
-# تقليم الهيكس لنطاق المنطقة
 hex_gdf = hex_gdf[hex_gdf.intersects(area_bound)].copy()
 hex_gdf = hex_gdf.reset_index(drop=True)
 print("  -> created hex cells:", len(hex_gdf))
@@ -84,7 +81,6 @@ print("  -> created hex cells:", len(hex_gdf))
 # -----------------------
 
 amen_proj = amen.to_crs(epsg=3857)
-# spatial join to count points in each hex
 joined = gpd.sjoin(amen_proj, hex_gdf, how="inner", predicate="within")
 counts = joined.groupby("index_right").size().rename("count")
 diversity = joined.groupby("index_right")['amenity'].nunique().rename("diversity")
