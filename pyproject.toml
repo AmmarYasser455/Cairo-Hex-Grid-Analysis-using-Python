@@ -1,0 +1,88 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hexanalysis"
+version = "0.2.0"
+description = "Hexagonal grid geospatial analysis for urban amenities"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Ammar Yasser Abdalazim", email = "ammar@example.com"}
+]
+keywords = [
+    "geospatial",
+    "hexagonal-grid",
+    "gis",
+    "osm",
+    "spatial-analysis",
+    "cairo",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: GIS",
+]
+requires-python = ">=3.9"
+dependencies = [
+    "numpy>=1.24.0",
+    "pandas>=1.5.0",
+    "geopandas>=0.13.0",
+    "shapely>=2.0.0",
+    "pyproj>=3.5.0",
+    "fiona>=1.9.0",
+    "rtree>=0.9.0",
+    "osmnx>=1.2.0",
+    "folium>=0.14.0",
+    "branca>=0.6.0",
+    "scikit-learn>=1.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.1.0",
+    "mypy>=1.0.0",
+]
+
+[project.scripts]
+hexanalysis = "hexanalysis.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/AmmarYasser455/Cairo-Hex-Grid-Analysis-using-Python"
+Repository = "https://github.com/AmmarYasser455/Cairo-Hex-Grid-Analysis-using-Python"
+Documentation = "https://github.com/AmmarYasser455/Cairo-Hex-Grid-Analysis-using-Python#readme"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "D", "UP"]
+ignore = ["D100", "D104"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+addopts = "-v --tb=short"

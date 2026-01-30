@@ -1,71 +1,164 @@
-# Cairo Hex Grid Analysis
+# Cairo Hex Grid Analysis 🗺️
 
-An end-to-end script to analyze OpenStreetMap (OSM) amenities over Cairo using a projected hex grid. The project builds a hex grid, aggregates amenity counts and diversity, computes a service score per hex, detects cafe hotspots with DBSCAN, exports GeoJSON, and produces an interactive Folium map.
+[![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
 
-Live demo (interactive map)
-- View the hosted interactive map here: https://cairo-hex-analysis-by-ammaryasser.netlify.app/
+Hexagonal grid analysis of urban amenities using OpenStreetMap data. Generate service coverage maps, identify hotspots, and visualize spatial patterns for any city.
 
-Quick links
-- Script: `advanced_hex_analysis.py`
-- Requirements: `requirements.txt`
+**[🌐 Live Demo →](https://cairo-hex-analysis-by-ammaryasser.netlify.app/)**
 
-Features
-- Download OSM amenities for a place (default: Cairo, Egypt)
-- Build a projected hex grid (meters) and trim to the target area
-- Aggregate amenity counts and unique amenity diversity per hex
-- Compute a combined "service score" (weighted density + diversity)
-- Detect cafe hotspots using DBSCAN (projected distances)
-- Export GeoJSONs and save an interactive Folium HTML map
+---
 
-Getting started
+## Features
 
-1. Clone the repo
+- 📥 **OSM Integration** – Download amenities directly from OpenStreetMap
+- ⬡ **Hex Grid Generation** – Create projected hexagonal grids in any CRS
+- 📊 **Service Scoring** – Compute density and diversity metrics per cell
+- 🔥 **Hotspot Detection** – Find clusters using DBSCAN algorithm
+- 🗺️ **Interactive Maps** – Generate Folium maps with layers and tooltips
+
+## Quick Start
+
+### Installation
+
 ```bash
+# Clone the repository
 git clone https://github.com/AmmarYasser455/Cairo-Hex-Grid-Analysis-using-Python.git
 cd Cairo-Hex-Grid-Analysis-using-Python
-```
 
-2. Install dependencies
-- Recommended: use conda (best for geospatial binaries)
-```bash
-conda create -n hexenv python=3.10 -y
-conda activate hexenv
-conda install -c conda-forge geopandas osmnx folium shapely fiona rtree pyproj scikit-learn branca pandas numpy matplotlib -y
-# Optionally pin exact pip versions:
-pip install -r requirements.txt
-```
-
-- Or with pip in a virtualenv:
-```bash
+# Create virtual environment (recommended)
 python -m venv .venv
-source .venv/bin/activate         # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+
+# Install the package
+pip install -e .
 ```
 
-3. Run the analysis
-- By default the script uses the variables at the top of `advanced_hex_analysis.py`:
-  - `place_name` — e.g., `"Cairo, Egypt"`
-  - `hex_radius_m` — hex radius in meters
-  - `output_folder` — where outputs are saved
-- Run:
+> **Note**: For easier geospatial dependency installation, consider using conda:
+> ```bash
+> conda create -n hexenv python=3.10 -y && conda activate hexenv
+> conda install -c conda-forge geopandas osmnx folium shapely scikit-learn -y
+> pip install -e .
+> ```
+
+### Run Analysis
+
 ```bash
-python advanced_hex_analysis.py
+# Default: Cairo, Egypt with 400m hex radius
+python run_analysis.py
+
+# Custom location and settings
+python run_analysis.py --place "Alexandria, Egypt" --radius 300 --output output/
 ```
 
-Outputs (default `output/` folder)
-- `cairo_hexgrid.geojson` — hex cells with attributes: count, diversity, area_m2, density_per_km2, score
-- `hotspots.geojson` — detected cafe hotspots (if any)
-- `cairo_hex_map.html` — interactive Folium map (this is the HTML you can view locally or host; the live demo link above hosts a version online)
+### CLI Options
 
-Embedding / hosting the HTML map
-- If you want to host the generated `cairo_hex_map.html` yourself:
-  - Option A — GitHub Pages: place the HTML in the `gh-pages` branch or in a docs/ folder and enable GitHub Pages.
-  - Option B — Netlify: drag & drop the HTML (or point Netlify to the repo) — this is how the live demo above was deployed.
-- The README's "Live demo" link points to a Netlify-hosted copy of the generated HTML map.
+| Option | Default | Description |
+|--------|---------|-------------|
+| `--place` | "Cairo, Egypt" | Location to analyze |
+| `--radius` | 400 | Hex radius in meters |
+| `--output` | output/ | Output directory |
+| `--dbscan-eps` | 200 | DBSCAN cluster distance (m) |
+| `--dbscan-min-samples` | 3 | Min points per cluster |
 
-Notes & troubleshooting
-- OSMnx API: function names have changed across versions. If you encounter an error with OSMnx functions, check your `osmnx` version and update function calls (e.g., `geometries_from_place` vs `features_from_place`).
-- CRS and distances: DBSCAN `eps` is in projected units (meters) because the script uses EPSG:3857 for distance calculations. If you change `hex_radius_m`, consider adjusting `eps`.
-- Large areas: generating a dense hex grid over large administrative boundaries may create many cells and use a lot of memory. Consider limiting the grid to a buffered convex hull around your amenity points.
-- Installing geopandas/fiona/shapely via pip can fail on some systems due to native dependencies (GDAL/PROJ). Use conda-forge for a smoother install.
+## Output Files
 
+| File | Description |
+|------|-------------|
+| `cairo_hexgrid.geojson` | Hex cells with count, diversity, density, score |
+| `hotspots.geojson` | Detected cafe cluster centroids |
+| `cairo_hex_map.html` | Interactive Folium map |
+
+## Project Structure
+
+```
+Cairo-Hex-Grid-Analysis/
+├── src/hexanalysis/         # Core package
+│   ├── __init__.py          # Package exports
+│   ├── config.py            # Configuration dataclass
+│   ├── hexgrid.py           # Hex grid generation
+│   ├── analysis.py          # Score computation & clustering
+│   ├── osm.py               # OSM data fetching
+│   ├── visualization.py     # Folium map creation
+│   └── cli.py               # Command-line interface
+├── tests/                   # Pytest tests
+├── run_analysis.py          # Entry point script
+├── pyproject.toml           # Package configuration
+└── requirements.txt         # Pinned dependencies
+```
+
+## Package API
+
+```python
+from hexanalysis import (
+    Config,
+    fetch_area,
+    fetch_amenities,
+    create_hex_grid_gdf,
+    aggregate_amenities,
+    compute_scores,
+    detect_hotspots,
+    create_map,
+)
+
+# Configure analysis
+config = Config(place_name="Giza, Egypt", hex_radius_m=500)
+
+# Fetch data
+area = fetch_area(config.place_name)
+amenities = fetch_amenities(config.place_name, config.amenity_types)
+
+# Build hex grid and analyze
+hex_gdf = create_hex_grid_gdf(area, config.hex_radius_m)
+hex_gdf = aggregate_amenities(amenities.to_crs(epsg=3857), hex_gdf)
+hex_gdf = compute_scores(hex_gdf)
+
+# Find hotspots
+hotspots = detect_hotspots(amenities.to_crs(epsg=3857), "cafe")
+
+# Create interactive map
+m = create_map(hex_gdf.to_crs(4326), amenities, hotspots.to_crs(4326), area)
+m.save("map.html")
+```
+
+## Development
+
+```bash
+# Install dev dependencies
+pip install -e ".[dev]"
+
+# Run tests
+pytest tests/ -v
+
+# Lint and format
+ruff check src/
+ruff format src/
+```
+
+## How It Works
+
+```mermaid
+graph LR
+    A[OSM API] --> B[Fetch Amenities]
+    B --> C[Generate Hex Grid]
+    C --> D[Spatial Join]
+    D --> E[Compute Scores]
+    E --> F[DBSCAN Clustering]
+    F --> G[Folium Map]
+```
+
+1. **Fetch Data**: Downloads amenities within the specified place boundary
+2. **Build Grid**: Creates flat-top hexagons in EPSG:3857 (Web Mercator)
+3. **Aggregate**: Counts amenities and unique types per hex cell
+4. **Score**: Normalizes density + diversity with configurable weights
+5. **Cluster**: Identifies cafe hotspots using DBSCAN on projected coordinates
+6. **Visualize**: Generates an interactive map with heatmap, hex layer, and markers
+
+## License
+
+MIT License – see [LICENSE](LICENSE) for details.
+
+---
+
+Made with ❤️ by [Ammar Yasser](https://github.com/AmmarYasser455)
