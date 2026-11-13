@@ -82,6 +82,24 @@ class TestMakeHexGrid:
         overlap_ratio = (total_area - union.area) / union.area
         assert overlap_ratio < 0.1  # Less than 10% overlap
 
+    def test_tessellates_exactly(self):
+        """Hexagons must neither overlap nor leave gaps inside the bbox."""
+        from shapely.geometry import box
+        from shapely.ops import unary_union
+
+        hexagons = make_hex_grid(0, 0, 500, 500, 100)
+        union = unary_union(hexagons)
+        total_area = sum(h.area for h in hexagons)
+        assert np.isclose(total_area, union.area, rtol=1e-6)
+        bbox = box(0, 0, 500, 500)
+        assert np.isclose(union.intersection(bbox).area, bbox.area, rtol=1e-6)
+
+    @pytest.mark.parametrize("radius", [0, -5])
+    def test_non_positive_radius_raises(self, radius):
+        """A non-positive radius must fail instead of looping forever."""
+        with pytest.raises(ValueError):
+            make_hex_grid(0, 0, 500, 500, radius)
+
     def test_larger_area_more_hexagons(self):
         """Larger bounding boxes should produce more hexagons."""
         small = make_hex_grid(0, 0, 500, 500, 100)

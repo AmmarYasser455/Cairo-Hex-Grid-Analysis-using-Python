@@ -68,26 +68,28 @@ def make_hex_grid(
         >>> len(hexagons) > 0
         True
     """
-    # Horizontal and vertical spacing for flat-top hexagons
+    if radius <= 0:
+        raise ValueError(f"radius must be positive, got {radius}")
+
+    # Flat-top hexagons: columns are 1.5r apart, and odd columns are shifted
+    # vertically by half the row spacing so neighbours share edges exactly.
     dx = 1.5 * radius
     dy = np.sqrt(3) * radius
 
     hexagons: list[Polygon] = []
-    row = 0
-    y = miny - dy
+    col = 0
+    x = minx - dx
 
-    while y < maxy + dy:
-        # Offset every other row for proper tessellation
-        x_offset = 0.75 * radius if row % 2 == 1 else 0
-        x = minx - dx
+    while x < maxx + dx:
+        y_offset = 0.5 * dy if col % 2 == 1 else 0
+        y = miny - dy
 
-        while x < maxx + dx:
-            hexagon = make_hexagon(x + x_offset, y, radius)
-            hexagons.append(hexagon)
-            x += dx
+        while y < maxy + dy:
+            hexagons.append(make_hexagon(x, y + y_offset, radius))
+            y += dy
 
-        y += dy
-        row += 1
+        x += dx
+        col += 1
 
     return hexagons
 
