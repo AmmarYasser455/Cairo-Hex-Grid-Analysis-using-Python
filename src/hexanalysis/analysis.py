@@ -61,8 +61,15 @@ def compute_scores(
         density_norm, diversity_norm, score.
 
     Raises:
-        ValueError: If weights don't sum to 1.0 (within tolerance).
+        ValueError: If a weight is negative or weights don't sum to 1.0
+            (within tolerance); negative weights would push scores outside
+            [0, 1].
     """
+    if density_weight < 0 or diversity_weight < 0:
+        raise ValueError(
+            "Weights must be non-negative, got "
+            f"density_weight={density_weight}, diversity_weight={diversity_weight}"
+        )
     if not np.isclose(density_weight + diversity_weight, 1.0):
         raise ValueError(
             f"Weights must sum to 1.0, got {density_weight + diversity_weight}"
