@@ -154,6 +154,37 @@ class TestAggregateAmenities:
         assert result["count"].dtype in [np.int64, np.int32, int]
         assert result["diversity"].dtype in [np.int64, np.int32, int]
 
+    def test_empty_amenities(self, sample_amenities_gdf, sample_hex_gdf):
+        """No amenities at all should give zero counts, not an error."""
+        result = aggregate_amenities(sample_amenities_gdf.iloc[0:0], sample_hex_gdf)
+        assert (result["count"] == 0).all()
+        assert (result["diversity"] == 0).all()
+
+    def test_named_and_non_default_index(self, sample_amenities_gdf, sample_hex_gdf):
+        """Hex grids with a named, non-range index are handled."""
+        hexes = sample_hex_gdf.copy()
+        hexes.index = [f"h{i}" for i in range(len(hexes))]
+        hexes.index.name = "hex_id"
+        result = aggregate_amenities(sample_amenities_gdf, hexes)
+        assert result["count"].sum() == 7
+        assert list(result.index) == list(hexes.index)
+
+    def test_existing_index_right_column(self, sample_amenities_gdf, sample_hex_gdf):
+        """Input with a stray 'index_right' column does not break the join."""
+        amenities = sample_amenities_gdf.copy()
+        amenities["index_right"] = 0
+        result = aggregate_amenities(amenities, sample_hex_gdf)
+        assert result["count"].sum() == 7
+
+    def test_points_on_shared_edge_counted_once(self, sample_hex_gdf):
+        """A point on a cell boundary is counted exactly once."""
+        edge = sample_hex_gdf.geometry.iloc[0].exterior.coords[0]
+        pts = gpd.GeoDataFrame(
+            {"amenity": ["cafe"]}, geometry=[Point(edge)], crs=sample_hex_gdf.crs
+        )
+        result = aggregate_amenities(pts, sample_hex_gdf)
+        assert result["count"].sum() == 1
+
     def test_empty_cells_have_zero(self, sample_amenities_gdf, sample_hex_gdf):
         """Cells without amenities should have count=0."""
         result = aggregate_amenities(sample_amenities_gdf, sample_hex_gdf)
