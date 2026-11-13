@@ -177,15 +177,29 @@ def aggregate_amenities(
     """
     gdf = hex_gdf.copy()
 
-    # Spatial join
-    joined = gpd.sjoin(amenities_gdf, gdf, how="inner", predicate="within")
+    # Join on positional indices so custom/named/duplicate indices and stray
+    # 'index_right' columns in the inputs cannot interfere.
+    points = gpd.GeoDataFrame(
+        {"amenity": amenities_gdf["amenity"].to_numpy()},
+        geometry=amenities_gdf.geometry.to_numpy(),
+        crs=amenities_gdf.crs,
+    )
+    cells = gpd.GeoDataFrame(
+        geometry=gdf.geometry.to_numpy(), crs=gdf.crs
+    )
+
+    # "intersects" keeps points lying exactly on a cell edge; each point is
+    # then assigned to a single cell so shared-edge points are not double counted.
+    joined = gpd.sjoin(points, cells, how="inner", predicate="intersects")
+    joined = joined[~joined.index.duplicated(keep="first")]
 
     # Aggregate counts
-    counts = joined.groupby("index_right").size().rename("count")
-    diversity = joined.groupby("index_right")["amenity"].nunique().rename("diversity")
+    counts = joined.groupby("index_right").size()
+    diversity = joined.groupby("index_right")["amenity"].nunique()
 
-    # Map to hex grid
-    gdf["count"] = gdf.index.map(counts).fillna(0).astype(int)
-    gdf["diversity"] = gdf.index.map(diversity).fillna(0).astype(int)
+    # Map to hex grid (positional)
+    positions = np.arange(len(gdf))
+    gdf["count"] = counts.reindex(positions, fill_value=0).to_numpy().astype(int)
+    gdf["diversity"] = diversity.reindex(positions, fill_value=0).to_numpy().astype(int)
 
     return gdf
