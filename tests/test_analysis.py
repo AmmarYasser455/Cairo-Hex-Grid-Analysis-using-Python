@@ -73,6 +73,12 @@ class TestComputeScores:
         with pytest.raises(ValueError, match="must sum to 1.0"):
             compute_scores(sample_hex_gdf, density_weight=0.5, diversity_weight=0.3)
 
+    @pytest.mark.parametrize("dw, vw", [(1.5, -0.5), (-0.2, 1.2)])
+    def test_negative_weights_rejected(self, sample_hex_gdf, dw, vw):
+        """Negative weights summing to 1 would give scores outside [0, 1]."""
+        with pytest.raises(ValueError, match="non-negative"):
+            compute_scores(sample_hex_gdf, density_weight=dw, diversity_weight=vw)
+
     def test_custom_weights(self, sample_hex_gdf):
         """Should apply custom weights correctly."""
         sample_hex_gdf.loc[0, "count"] = 10
