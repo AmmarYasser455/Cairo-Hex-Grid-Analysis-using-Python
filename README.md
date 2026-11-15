@@ -10,6 +10,14 @@ Hexagonal grid analysis of urban amenities using OpenStreetMap data. Generate se
 
 ---
 
+## Showcase
+
+Amenity coverage of central Cairo on a 300 m hex grid, built from real OpenStreetMap data with this package.
+
+![Central Cairo hex grid map](showcase/map.png)
+
+Report: [showcase/](showcase/README.md) · [web map](showcase/index.html) · [notebook](showcase/showcase.ipynb) · [GeoJSON](showcase/map.geojson)
+
 ## Features
 
 - 📥 **OSM Integration** – Download amenities directly from OpenStreetMap

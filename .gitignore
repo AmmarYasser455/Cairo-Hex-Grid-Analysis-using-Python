@@ -48,6 +48,11 @@ htmlcov/
 output/
 *.geojson
 *.html
+# ...except the committed showcase
+!showcase/*.geojson
+!showcase/*.html
+!showcase/data/
+!showcase/data/*.geojson
 
 # OS files
 .DS_Store
