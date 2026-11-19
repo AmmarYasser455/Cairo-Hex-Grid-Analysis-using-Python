@@ -196,3 +196,119 @@ class TestAggregateAmenities:
         result = aggregate_amenities(sample_amenities_gdf, sample_hex_gdf)
         # At least some cells should be empty given sparse points
         assert (result["count"] == 0).any()
+
+
+class TestCrsHandling:
+    # Tahrir Square, Cairo (lon, lat)
+    LON, LAT = 31.2357, 30.0444
+
+    def test_aggregate_reprojects_mismatched_crs(self):
+        from shapely.geometry import box
+
+        pts = gpd.GeoDataFrame(
+            {"amenity": ["cafe"]},
+            geometry=[Point(self.LON, self.LAT)],
+            crs="EPSG:4326",
+        )
+        x, y = pts.to_crs("EPSG:32636").geometry.iloc[0].coords[0]
+        cells = gpd.GeoDataFrame(
+            geometry=[box(x - 100, y - 100, x + 100, y + 100)], crs="EPSG:32636"
+        )
+        out = aggregate_amenities(pts, cells)
+        assert out["count"].tolist() == [1]
+        assert out.crs == cells.crs
+
+    def test_compute_scores_rejects_geographic_crs(self):
+        from shapely.geometry import box
+
+        gdf = gpd.GeoDataFrame(
+            {"count": [1], "diversity": [1]},
+            geometry=[box(31.2, 30.0, 31.3, 30.1)],
+            crs="EPSG:4326",
+        )
+        with pytest.raises(ValueError, match="projected"):
+            compute_scores(gdf)
+
+    def test_detect_hotspots_rejects_geographic_crs(self):
+        gdf = gpd.GeoDataFrame(
+            {"amenity": ["cafe"] * 3},
+            geometry=[Point(self.LON, self.LAT)] * 3,
+            crs="EPSG:4326",
+        )
+        with pytest.raises(ValueError, match="projected"):
+            detect_hotspots(gdf)
+
+    def test_compute_scores_rejects_non_metre_projected_crs(self):
+        from shapely.geometry import box
+
+        # EPSG:2263 is NY State Plane in US survey feet
+        gdf = gpd.GeoDataFrame(
+            {"count": [1], "diversity": [1]},
+            geometry=[box(0, 0, 1000, 1000)],
+            crs="EPSG:2263",
+        )
+        with pytest.raises(ValueError, match="metre"):
+            compute_scores(gdf)
+
+    def test_detect_hotspots_rejects_non_metre_projected_crs(self):
+        gdf = gpd.GeoDataFrame(
+            {"amenity": ["cafe"] * 3},
+            geometry=[Point(0, 0)] * 3,
+            crs="EPSG:2263",
+        )
+        with pytest.raises(ValueError, match="metre"):
+            detect_hotspots(gdf)
+
+
+def _cell(crs):
+    from shapely.geometry import box
+
+    return gpd.GeoDataFrame(
+        {"count": [1], "diversity": [1]}, geometry=[box(0, 0, 10, 10)], crs=crs
+    )
+
+
+def _pts(crs):
+    return gpd.GeoDataFrame(
+        {"amenity": ["cafe"] * 3}, geometry=[Point(0, 0)] * 3, crs=crs
+    )
+
+
+_GOOD_PTS = _pts("EPSG:3857")
+_GOOD_CELL = _cell("EPSG:3857")
+
+
+@pytest.mark.parametrize(
+    "call, exc, match",
+    [
+        # missing CRS on each input
+        (lambda: compute_scores(_cell(None)), ValueError, "CRS"),
+        (lambda: detect_hotspots(_pts(None)), ValueError, "CRS"),
+        (lambda: aggregate_amenities(_pts(None), _GOOD_CELL), ValueError, "CRS"),
+        (lambda: aggregate_amenities(_GOOD_PTS, _cell(None)), ValueError, "CRS"),
+        # geographic (degrees)
+        (lambda: compute_scores(_cell("EPSG:4326")), ValueError, "geographic"),
+        (lambda: detect_hotspots(_pts("EPSG:4326")), ValueError, "geographic"),
+        # geocentric: metre axes but not a projected CRS
+        (lambda: compute_scores(_cell("EPSG:4978")), ValueError, "non-projected"),
+        (lambda: detect_hotspots(_pts("EPSG:4978")), ValueError, "non-projected"),
+        # projected in US survey feet
+        (lambda: compute_scores(_cell("EPSG:2263")), ValueError, "metre"),
+        (lambda: detect_hotspots(_pts("EPSG:2263")), ValueError, "metre"),
+        # wrong input types
+        (lambda: compute_scores(None), TypeError, "GeoDataFrame"),
+        (lambda: compute_scores({"count": [1]}), TypeError, "GeoDataFrame"),
+        (lambda: detect_hotspots("cafes.geojson"), TypeError, "GeoDataFrame"),
+        (lambda: aggregate_amenities(None, _GOOD_CELL), TypeError, "GeoDataFrame"),
+        (lambda: aggregate_amenities(_GOOD_PTS, [1, 2]), TypeError, "GeoDataFrame"),
+    ],
+)
+def test_invalid_inputs_rejected(call, exc, match):
+    with pytest.raises(exc, match=match):
+        call()
+
+
+def test_utm_metre_crs_accepted():
+    # UTM 36N (EPSG:32636) covers Cairo and is in metres
+    out = compute_scores(_cell("EPSG:32636"))
+    assert out["area_m2"].iloc[0] == pytest.approx(100.0)

@@ -17,6 +17,43 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
+def _require_crs(gdf: gpd.GeoDataFrame, what: str) -> None:
+    """Raise unless ``gdf`` is a GeoDataFrame with known CRS metadata."""
+    if not isinstance(gdf, gpd.GeoDataFrame):
+        raise TypeError(
+            f"{what} expects a GeoDataFrame, got {type(gdf).__name__}"
+        )
+    if gdf.crs is None:
+        raise ValueError(
+            f"{what} requires a GeoDataFrame with a CRS, got none; "
+            "set it with set_crs() first"
+        )
+
+
+def _require_projected(gdf: gpd.GeoDataFrame, what: str) -> None:
+    """Raise unless ``gdf`` has a projected CRS with metre horizontal axes.
+
+    A missing CRS, a geographic CRS (degrees), a non-projected CRS such as
+    geocentric EPSG:4978, or a projected CRS in other linear units (e.g.
+    feet) would give wrong areas and distances.
+    """
+    _require_crs(gdf, what)
+    crs = gdf.crs
+    if not crs.is_projected:
+        kind = "geographic" if crs.is_geographic else "non-projected"
+        raise ValueError(
+            f"{what} requires a projected CRS (metres), got {kind} CRS "
+            f"{crs.to_string()}; reproject with to_crs() first"
+        )
+    for axis in crs.axis_info[:2]:
+        if abs(axis.unit_conversion_factor - 1.0) > 1e-9:
+            raise ValueError(
+                f"{what} requires a projected CRS with metre units, got "
+                f"{crs.to_string()} with axis unit '{axis.unit_name}'; "
+                "reproject with to_crs() first"
+            )
+
+
 def normalize(value: float, min_val: float, max_val: float) -> float:
     """
     Normalize a value to [0, 1] range using min-max scaling.
@@ -63,7 +100,9 @@ def compute_scores(
     Raises:
         ValueError: If a weight is negative or weights don't sum to 1.0
             (within tolerance); negative weights would push scores outside
-            [0, 1].
+            [0, 1]; or if hex_gdf has no CRS or is not in a projected CRS
+            with metre units.
+        TypeError: If hex_gdf is not a GeoDataFrame.
     """
     if density_weight < 0 or diversity_weight < 0:
         raise ValueError(
@@ -75,6 +114,7 @@ def compute_scores(
             f"Weights must sum to 1.0, got {density_weight + diversity_weight}"
         )
 
+    _require_projected(hex_gdf, "compute_scores (area/density)")
     gdf = hex_gdf.copy()
 
     # Compute area and density
@@ -124,10 +164,14 @@ def detect_hotspots(
         GeoDataFrame with cluster centroids including 'cluster' and 'size'.
         Empty GeoDataFrame if no clusters found.
 
-    Note:
-        Input GeoDataFrame should be in a projected CRS (e.g., EPSG:3857)
-        for meaningful distance calculations.
+    Raises:
+        TypeError: If amenities_gdf is not a GeoDataFrame.
+        ValueError: If amenities_gdf has no CRS or is not in a projected
+            CRS with metre units (e.g. EPSG:3857 or a UTM zone); reproject
+            with to_crs() first.
     """
+    _require_projected(amenities_gdf, "detect_hotspots (eps in metres)")
+
     # Filter to specified amenity type
     filtered = amenities_gdf[amenities_gdf["amenity"] == amenity_type].copy()
 
@@ -176,13 +220,23 @@ def aggregate_amenities(
     Aggregate amenity counts and diversity per hex cell.
 
     Args:
-        amenities_gdf: GeoDataFrame with amenity points (same CRS as hex_gdf).
+        amenities_gdf: GeoDataFrame with amenity points. If its CRS differs
+            from hex_gdf's, the points are reprojected to hex_gdf's CRS.
         hex_gdf: GeoDataFrame with hex polygons.
 
     Returns:
         GeoDataFrame with 'count' and 'diversity' columns added.
+
+    Raises:
+        TypeError: If either input is not a GeoDataFrame.
+        ValueError: If either input has no CRS.
     """
+    _require_crs(amenities_gdf, "aggregate_amenities (amenities_gdf)")
+    _require_crs(hex_gdf, "aggregate_amenities (hex_gdf)")
     gdf = hex_gdf.copy()
+
+    if amenities_gdf.crs != hex_gdf.crs:
+        amenities_gdf = amenities_gdf.to_crs(hex_gdf.crs)
 
     # Join on positional indices so custom/named/duplicate indices and stray
     # 'index_right' columns in the inputs cannot interfere.
