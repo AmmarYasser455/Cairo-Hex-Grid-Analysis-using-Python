@@ -175,6 +175,16 @@ def detect_hotspots(
     # Filter to specified amenity type
     filtered = amenities_gdf[amenities_gdf["amenity"] == amenity_type].copy()
 
+    # Drop missing/empty geometries; non-point geometries (e.g. building
+    # footprints) are represented by their centroid, valid because the CRS
+    # is projected.
+    filtered = filtered[~(filtered.geometry.isna() | filtered.geometry.is_empty)]
+    non_point = filtered.geom_type != "Point"
+    if non_point.any():
+        filtered.loc[non_point, filtered.geometry.name] = (
+            filtered.geometry[non_point].centroid
+        )
+
     if len(filtered) < min_samples:
         return gpd.GeoDataFrame(
             columns=["geometry", "cluster", "size"],
