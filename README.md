@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/brand/logo.png" alt="Cairo-Hex-Grid-Analysis-using-Python logo" width="112">
+</p>
+
 # Cairo Hex Grid Analysis 🗺️
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
