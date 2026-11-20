@@ -98,6 +98,32 @@ class TestComputeScores:
         )
 
 
+class TestDetectHotspotsGeometries:
+    """detect_hotspots must tolerate missing and non-point geometries."""
+
+    def test_none_and_empty_geometries_ignored(self):
+        gdf = gpd.GeoDataFrame(
+            {"amenity": ["cafe"] * 5},
+            geometry=[Point(0, 0), Point(10, 0), Point(0, 10), None, Point()],
+            crs=3857,
+        )
+        result = detect_hotspots(gdf, eps=50, min_samples=3)
+        assert len(result) == 1
+        assert result["size"].iloc[0] == 3
+
+    def test_polygons_use_centroid(self):
+        from shapely.geometry import box
+        gdf = gpd.GeoDataFrame(
+            {"amenity": ["cafe"] * 3},
+            geometry=[box(0, 0, 10, 10), Point(10, 0), Point(0, 10)],
+            crs=3857,
+        )
+        result = detect_hotspots(gdf, eps=50, min_samples=3)
+        assert len(result) == 1
+        assert result["size"].iloc[0] == 3
+        assert result.crs == gdf.crs
+
+
 class TestDetectHotspots:
     """Tests for detect_hotspots function."""
 
