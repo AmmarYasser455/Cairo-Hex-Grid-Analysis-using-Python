@@ -47,6 +47,13 @@ def main() -> int:
         help="DBSCAN minimum samples per cluster (default: 3)",
     )
 
+    parser.add_argument(
+        "--crs",
+        default="EPSG:3857",
+        help="Projected CRS for the grid, or 'auto' for the local UTM zone "
+        "so radii are true ground metres (default: EPSG:3857)",
+    )
+
     args = parser.parse_args()
 
     # Create config
@@ -56,6 +63,7 @@ def main() -> int:
         output_folder=args.output,
         dbscan_eps=args.dbscan_eps,
         dbscan_min_samples=args.dbscan_min_samples,
+        grid_crs=args.crs,
     )
 
     # Run analysis
@@ -86,11 +94,11 @@ def run_analysis(config: Config) -> None:
     print(f"   → Found {len(amenities)} amenities of interest")
 
     print("2) Building hex grid (projected meters)...")
-    hex_gdf = create_hex_grid_gdf(area_gdf, config.hex_radius_m)
+    hex_gdf = create_hex_grid_gdf(area_gdf, config.hex_radius_m, crs=config.grid_crs)
     print(f"   → Created {len(hex_gdf)} hex cells")
 
     print("3) Aggregating amenities per hex...")
-    amenities_proj = amenities.to_crs(epsg=3857)
+    amenities_proj = amenities.to_crs(hex_gdf.crs)
     hex_gdf = aggregate_amenities(amenities_proj, hex_gdf)
     hex_gdf = compute_scores(
         hex_gdf,
