@@ -68,8 +68,12 @@ def make_hex_grid(
         >>> len(hexagons) > 0
         True
     """
-    if radius <= 0:
-        raise ValueError(f"radius must be positive, got {radius}")
+    if not np.isfinite(radius) or radius <= 0:
+        raise ValueError(f"radius must be positive and finite, got {radius}")
+    if not np.all(np.isfinite([minx, miny, maxx, maxy])):
+        raise ValueError(
+            f"bounding box must be finite, got {(minx, miny, maxx, maxy)}"
+        )
 
     # Flat-top hexagons: columns are 1.5r apart, and odd columns are shifted
     # vertically by half the row spacing so neighbours share edges exactly.
@@ -114,9 +118,20 @@ def create_hex_grid_gdf(
 
     Returns:
         GeoDataFrame of hexagons that intersect the boundary.
+
+    Raises:
+        ValueError: If the boundary has no CRS or only null/empty geometries,
+            the radius is not positive and finite, or the grid CRS is not
+            projected in metres.
     """
     if boundary_gdf.crs is None:
         raise ValueError("boundary_gdf has no CRS; set it with set_crs() first")
+    keep = ~(boundary_gdf.geometry.isna() | boundary_gdf.geometry.is_empty)
+    if not keep.any():
+        raise ValueError(
+            "boundary_gdf has no non-empty geometry to build a grid from"
+        )
+    boundary_gdf = boundary_gdf[keep.to_numpy()]
     if isinstance(crs, str) and crs.lower() == "auto":
         crs = boundary_gdf.estimate_utm_crs()
     # Project to meters
