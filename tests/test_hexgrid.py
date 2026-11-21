@@ -107,6 +107,53 @@ class TestMakeHexGrid:
         assert len(large) > len(small)
 
 
+class TestAutoCrs:
+    """create_hex_grid_gdf(crs="auto") uses the local UTM zone."""
+
+    @staticmethod
+    def _tahrir():
+        import geopandas as gpd
+        from shapely.geometry import box
+
+        # ~1 km box around Tahrir Square, Cairo (x=lon, y=lat)
+        return gpd.GeoDataFrame(
+            geometry=[box(31.230, 30.039, 31.240, 30.048)], crs="EPSG:4326"
+        )
+
+    def test_auto_selects_utm_36n(self):
+        result = create_hex_grid_gdf(self._tahrir(), radius=200, crs="auto")
+        assert result.crs.to_epsg() == 32636
+
+    def test_auto_radius_is_ground_metres(self):
+        auto = create_hex_grid_gdf(self._tahrir(), radius=200, crs="auto")
+        merc = create_hex_grid_gdf(self._tahrir(), radius=200)
+        expected = 3 * np.sqrt(3) / 2 * 200**2
+        assert np.isclose(auto.geometry.area.iloc[0], expected, rtol=1e-6)
+        # Web Mercator inflates the nominal area; true ground area is smaller
+        ground = merc.to_crs(auto.crs).geometry.area.iloc[0]
+        assert ground < 0.8 * expected
+
+    def test_geographic_crs_rejected(self):
+        with pytest.raises(ValueError):
+            create_hex_grid_gdf(self._tahrir(), radius=200, crs="EPSG:4326")
+
+    def test_non_metre_projected_crs_rejected(self):
+        # NAD83 / California zone 5 (ftUS), EPSG:2229; Los Angeles boundary
+        import geopandas as gpd
+        from shapely.geometry import box
+
+        la = gpd.GeoDataFrame(
+            geometry=[box(-118.26, 34.04, -118.24, 34.06)], crs="EPSG:4326"
+        )
+        with pytest.raises(ValueError, match="metre"):
+            create_hex_grid_gdf(la, radius=400, crs="EPSG:2229")
+
+    def test_missing_boundary_crs_rejected(self, sample_boundary_gdf):
+        no_crs = sample_boundary_gdf.set_crs(None, allow_override=True)
+        with pytest.raises(ValueError):
+            create_hex_grid_gdf(no_crs, 100)
+
+
 class TestCreateHexGridGdf:
     """Tests for create_hex_grid_gdf function."""
 

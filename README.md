@@ -76,6 +76,7 @@ python run_analysis.py --place "Alexandria, Egypt" --radius 300 --output output/
 | `--output` | output/ | Output directory |
 | `--dbscan-eps` | 200 | DBSCAN cluster distance (m) |
 | `--dbscan-min-samples` | 3 | Min points per cluster |
+| `--crs` | EPSG:3857 | Grid CRS; `auto` uses the local UTM zone so radii are true ground metres (Web Mercator stretches distances ~15% at Cairo) |
 
 ## Output Files
 

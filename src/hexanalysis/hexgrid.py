@@ -105,13 +105,32 @@ def create_hex_grid_gdf(
     Args:
         boundary_gdf: GeoDataFrame with boundary geometry.
         radius: Hexagon radius in meters.
-        crs: Projected CRS to use for grid generation.
+        crs: Projected CRS (metre units) to use for grid generation. The
+            default, EPSG:3857, keeps existing behaviour but stretches
+            distances by 1/cos(latitude) (about 15% at Cairo), so a "400 m"
+            radius is shorter on the ground. Pass ``"auto"`` to use the local
+            UTM zone estimated from the boundary, where the radius is true
+            ground distance.
 
     Returns:
         GeoDataFrame of hexagons that intersect the boundary.
     """
+    if boundary_gdf.crs is None:
+        raise ValueError("boundary_gdf has no CRS; set it with set_crs() first")
+    if isinstance(crs, str) and crs.lower() == "auto":
+        crs = boundary_gdf.estimate_utm_crs()
     # Project to meters
     boundary_proj = boundary_gdf.to_crs(crs)
+    if not boundary_proj.crs.is_projected:
+        raise ValueError(
+            f"crs must be a projected CRS in metres, got {boundary_proj.crs.to_string()}"
+        )
+    units = [a.unit_name for a in boundary_proj.crs.axis_info if a.direction in ("east", "north", "west", "south")]
+    if any(u not in ("metre", "meter") for u in units):
+        raise ValueError(
+            "crs must use metre units on its horizontal axes, got "
+            f"{units} for {boundary_proj.crs.to_string()}"
+        )
     boundary_geom = boundary_proj.geometry.union_all()
     minx, miny, maxx, maxy = boundary_geom.bounds
 

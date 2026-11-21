@@ -46,6 +46,9 @@ class Config:
     density_weight: float = 0.65
     diversity_weight: float = 0.35
 
+    # CRS used to build the grid ("auto" = local UTM zone)
+    grid_crs: str = "EPSG:3857"
+
     def __post_init__(self) -> None:
         """Ensure output folder exists."""
         self.output_folder = Path(self.output_folder)
