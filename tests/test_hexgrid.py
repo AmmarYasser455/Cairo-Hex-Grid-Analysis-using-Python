@@ -177,3 +177,50 @@ class TestCreateHexGridGdf:
         """Result should be in EPSG:3857."""
         result = create_hex_grid_gdf(sample_boundary_gdf, radius=100)
         assert result.crs.to_epsg() == 3857
+
+
+class TestInputValidation:
+    def test_non_finite_radius_rejected(self):
+        for r in (float("nan"), float("inf"), -1.0, 0):
+            with pytest.raises(ValueError, match="radius"):
+                make_hex_grid(0, 0, 1000, 1000, r)
+
+    def test_non_finite_bbox_rejected(self):
+        with pytest.raises(ValueError, match="finite"):
+            make_hex_grid(float("nan"), 0, 1000, 1000, 100)
+
+    def test_empty_or_null_boundary_rejected(self):
+        import geopandas as gpd
+
+        for geoms in ([], [None], [Polygon()]):
+            gdf = gpd.GeoDataFrame(geometry=geoms, crs="EPSG:4326")
+            with pytest.raises(ValueError, match="no non-empty geometry"):
+                create_hex_grid_gdf(gdf, radius=400)
+
+    def test_null_rows_ignored_next_to_valid_boundary(self):
+        import geopandas as gpd
+        from shapely.geometry import box
+
+        # Real extent around central Cairo (lon 31.23-31.25, lat 30.04-30.06)
+        gdf = gpd.GeoDataFrame(
+            geometry=[None, box(31.23, 30.04, 31.25, 30.06)], crs="EPSG:4326"
+        )
+        result = create_hex_grid_gdf(gdf, radius=400, crs="auto")
+        assert len(result) > 0
+        assert result.crs.to_epsg() == 32636
+
+    def test_duplicate_index_labels_do_not_expand_input(self):
+        import geopandas as gpd
+        from shapely.geometry import box
+
+        gdf = gpd.GeoDataFrame(
+            geometry=[None, box(31.23, 30.04, 31.25, 30.06), box(31.23, 30.04, 31.25, 30.06)],
+            index=[0, 0, 0],
+            crs="EPSG:4326",
+        )
+        single = gpd.GeoDataFrame(
+            geometry=[box(31.23, 30.04, 31.25, 30.06)], crs="EPSG:4326"
+        )
+        a = create_hex_grid_gdf(gdf, radius=400, crs="auto")
+        b = create_hex_grid_gdf(single, radius=400, crs="auto")
+        assert len(a) == len(b)
